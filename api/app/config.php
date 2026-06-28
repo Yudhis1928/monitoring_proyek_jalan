@@ -1,10 +1,17 @@
 <?php
 $host = 'bsfqntekdjqnvdoah3qc-mysql.services.clever-cloud.com'; 
-$db   = 'bsfqntekdjqnvdoah3qc';                                 
-$user = 'uw51gprlhmkkw8r8';                                 
+$db   = 'bsfqntekdjqnvdoah3qc';                                  
+$user = 'uw51gprlhmkkw8r8';                                  
 $pass = 'LUEGjpHB8XoVOkhvi9EH';                            
 $port = '3306';
 $charset = 'utf8mb4';
+
+// === TAMBAHKAN BARIS INI UNTUK MENYELAMATKAN ERROR DI FILE LAIN ===
+define('DB_HOST', $host);
+define('DB_USER', $user);
+define('DB_PASS', $pass);
+define('DB_NAME', $db);
+// ==================================================================
 
 $dsn = "mysql:host=$host;dbname=$db;port=$port;charset=$charset";
 $options = [
