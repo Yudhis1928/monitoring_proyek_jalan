@@ -1,27 +1,26 @@
 <?php
-// 1. Definisikan BASE_URL secara dinamis untuk Vercel & Localhost
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// 1. Definisikan BASE_URL secara otomatis untuk Vercel & Localhost
 if (!defined('BASE_URL')) {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
     $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
     define('BASE_URL', $protocol . $domain);
 }
 
-// 2. Definisikan UPLOAD_DIR jika belum diatur di file lain
+// 2. Definisikan UPLOAD_DIR untuk penanganan file dokumen proyek
 if (!defined('UPLOAD_DIR')) {
-    define('UPLOAD_DIR', __DIR__ . '/../public/uploads'); 
+    define('UPLOAD_DIR', __DIR__ . '/../public/uploads');
 }
 
-// 3. Panggil db.php
+// 3. Hubungkan ke database Clever Cloud
 require_once __DIR__ . '/db.php';
 
-// 4. Jembatan MySQLi: Buat objek $conn berbasis MySQLi menggunakan kredensial dari db.php
-if (!isset($conn) && defined('DB_HOST')) {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    if ($conn->connect_error) {
-        die("Koneksi MySQLi Gagal: " . $conn->connect_error);
-    }
-    $conn->set_charset("utf8mb4");
-}
+// ==========================================
+// KUMPULAN FUNGSI APLIKASI
+// ==========================================
 
 function e($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -55,7 +54,7 @@ function role_guard(array $roles) {
     $role = current_user()['role'] ?? '';
     if (!in_array($role, $roles, true)) {
         http_response_code(403);
-        die('Akses ditolak. Humanitas memang suka membagi akses, lalu lupa siapa yang boleh masuk.');
+        die('Akses ditolak. Anda tidak memiliki otoritas untuk halaman ini.');
     }
 }
 
@@ -157,8 +156,10 @@ function record_log($action, $detail = '') {
     $user = current_user();
     $userId = $user['id'] ?? null;
     $stmt = $conn->prepare("INSERT INTO activity_logs (user_id, aksi, detail) VALUES (?, ?, ?)");
-    $stmt->bind_param("iss", $userId, $action, $detail);
-    $stmt->execute();
+    if ($stmt) {
+        $stmt->bind_param("iss", $userId, $action, $detail);
+        $stmt->execute();
+    }
 }
 
 function get_users() {
@@ -172,6 +173,7 @@ function get_projects() {
 function get_project_by_id($id) {
     global $conn;
     $stmt = $conn->prepare("SELECT * FROM projects WHERE id_proyek = ?");
+    if (!$stmt) return null;
     $stmt->bind_param("i", $id);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
@@ -180,6 +182,7 @@ function get_project_by_id($id) {
 function get_project_progress($projectId) {
     global $conn;
     $stmt = $conn->prepare("SELECT * FROM progress_reports WHERE id_proyek = ? ORDER BY tanggal_laporan DESC, id_progress DESC");
+    if (!$stmt) return [];
     $stmt->bind_param("i", $projectId);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -188,6 +191,7 @@ function get_project_progress($projectId) {
 function get_latest_progress($projectId) {
     global $conn;
     $stmt = $conn->prepare("SELECT * FROM progress_reports WHERE id_proyek = ? ORDER BY tanggal_laporan DESC, id_progress DESC LIMIT 1");
+    if (!$stmt) return null;
     $stmt->bind_param("i", $projectId);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
@@ -196,6 +200,7 @@ function get_latest_progress($projectId) {
 function get_compliance_by_project($projectId) {
     global $conn;
     $stmt = $conn->prepare("SELECT * FROM compliance_checks WHERE id_proyek = ? ORDER BY created_at DESC, id_pemeriksaan DESC");
+    if (!$stmt) return [];
     $stmt->bind_param("i", $projectId);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -275,3 +280,4 @@ function recent_compliance($limit = 5) {
     $limit = (int)$limit;
     return fetch_all("SELECT c.*, pr.kode_proyek, pr.nama_proyek FROM compliance_checks c LEFT JOIN projects pr ON pr.id_proyek = c.id_proyek ORDER BY c.created_at DESC, c.id_pemeriksaan DESC LIMIT {$limit}");
 }
+?>
