@@ -1,29 +1,21 @@
 <?php
-$host = 'bsfqntekdjqnvdoah3qc-mysql.services.clever-cloud.com'; 
-$db   = 'bsfqntekdjqnvdoah3qc';                                  
-$user = 'uw51gprlhmkkw8r8';                                  
-$pass = 'LUEGjpHB8XoVOkhvi9EH';                            
-$port = '3306';
-$charset = 'utf8mb4';
+// Mengaktifkan pelacak error internal PHP
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-// === TAMBAHKAN BARIS INI UNTUK MENYELAMATKAN ERROR DI FILE LAIN ===
-define('DB_HOST', $host);
-define('DB_USER', $user);
-define('DB_PASS', $pass);
-define('DB_NAME', $db);
-// ==================================================================
+// Kredensial database Clever Cloud Anda
+define('DB_HOST', 'bsfqntekdjqnvdoah3qc-mysql.services.clever-cloud.com');
+define('DB_USER', 'uw51gprlhmkkw8r8');
+define('DB_PASS', 'LUEGjpHB8XoVOkhvi9EH');
+define('DB_NAME', 'bsfqntekdjqnvdoah3qc');
 
-$dsn = "mysql:host=$host;dbname=$db;port=$port;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
+// Membuat koneksi tunggal berbasis MySQLi yang akan dipakai oleh functions.php
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
-try {
-     $pdo = new PDO($dsn, $user, $pass, $options);
-     // Koneksi berhasil!
-} catch (\PDOException $e) {
-     throw new \PDOException($e->getMessage(), (int)$e->getCode());
+if ($conn->connect_error) {
+    die("Koneksi database ke Clever Cloud gagal: " . $conn->connect_error);
 }
+
+$conn->set_charset("utf8mb4");
 ?>
