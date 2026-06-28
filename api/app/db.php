@@ -1,8 +1,22 @@
 <?php
-require_once __DIR__ . '/config.php';
+$host = 'bsfqntekdjqnvdoah3qc-mysql.services.clever-cloud.com'; 
+$db   = 'bsfqntekdjqnvdoah3qc';                                 
+$user = 'uw51gprlhmkkw8r8';                                 
+$pass = 'LUEGjpHB8XoVOkhvi9EH';                            
+$port = '3306';
+$charset = 'utf8mb4';
 
-$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-if ($conn->connect_error) {
-    die('Koneksi database gagal: ' . $conn->connect_error);
+$dsn = "mysql:host=$host;dbname=$db;port=$port;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+];
+
+try {
+     $pdo = new PDO($dsn, $user, $pass, $options);
+     // Koneksi berhasil!
+} catch (\PDOException $e) {
+     throw new \PDOException($e->getMessage(), (int)$e->getCode());
 }
-$conn->set_charset('utf8mb4');
+?>
