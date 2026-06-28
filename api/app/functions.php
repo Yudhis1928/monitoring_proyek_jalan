@@ -1,5 +1,27 @@
 <?php
+// 1. Definisikan BASE_URL secara dinamis untuk Vercel & Localhost
+if (!defined('BASE_URL')) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    define('BASE_URL', $protocol . $domain);
+}
+
+// 2. Definisikan UPLOAD_DIR jika belum diatur di file lain
+if (!defined('UPLOAD_DIR')) {
+    define('UPLOAD_DIR', __DIR__ . '/../public/uploads'); 
+}
+
+// 3. Panggil db.php
 require_once __DIR__ . '/db.php';
+
+// 4. Jembatan MySQLi: Buat objek $conn berbasis MySQLi menggunakan kredensial dari db.php
+if (!isset($conn) && defined('DB_HOST')) {
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    if ($conn->connect_error) {
+        die("Koneksi MySQLi Gagal: " . $conn->connect_error);
+    }
+    $conn->set_charset("utf8mb4");
+}
 
 function e($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
