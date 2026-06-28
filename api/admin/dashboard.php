@@ -1,135 +1,118 @@
-<?php require_once __DIR__ . '/../partials/header.php'; ?>
 <?php
-$metrics = dashboard_metrics();
-$recentProjects = recent_projects(4);
-$recentProgress = recent_progress(5);
-$recentCompliance = recent_compliance(5);
-$projects = get_projects();
-$attention = [];
-foreach ($projects as $p) {
-    $latest = get_latest_progress((int)$p['id_proyek']);
-    $progress = (float)($latest['progress_persen'] ?? $p['persentase_progress'] ?? 0);
-    $expected = expected_progress($p);
-    if ($expected - $progress > 15 && $p['status'] !== 'Selesai') {
-        $attention[] = [
-            'nama_proyek' => $p['nama_proyek'],
-            'kode_proyek' => $p['kode_proyek'],
-            'progress' => $progress,
-            'expected' => $expected
-        ];
-    }
+// 1. Pastikan inisialisasi sesi berjalan paling awal di serverless environment
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
+
+// 2. Aktifkan pelacak error untuk debugging jika terjadi sesuatu
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// 3. Panggil fungsi core dengan jalur absolut yang aman
+require_once __DIR__ . '/../app/functions.php';
+
+// 4. Proteksi Halaman: Pastikan pengguna sudah login dan memiliki role yang sesuai
+// Jika fungsi ini memicu loop, pastikan ejaan role di database Anda (misal: 'Admin') cocok
+auth_guard(); 
+
+// Ambil data metrik untuk ditampilkan di dashboard
+$metrics = dashboard_metrics();
+$recent_p = recent_projects(5);
 ?>
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-  <div>
-    <h2 class="mb-1">Dashboard Monitoring</h2>
-    <div class="small-muted">Ringkasan progres, kepatuhan, dan status proyek infrastruktur.</div>
-  </div>
-  <div class="print-hidden">
-    <a href="<?= build_url('/reports/index.php') ?>" class="btn btn-outline-primary">Buka Laporan</a>
-  </div>
-</div>
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Admin | <?= e(APP_NAME) ?></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="<?= build_url('/assets/css/style.css') ?>" rel="stylesheet">
+</head>
+<body>
 
-<div class="row g-3 mb-4">
-  <div class="col-md-3"><div class="card-soft p-3"><div class="small-muted">Total Proyek</div><div class="metric"><?= $metrics['total_projects'] ?></div></div></div>
-  <div class="col-md-3"><div class="card-soft p-3"><div class="small-muted">Sedang Berjalan</div><div class="metric"><?= $metrics['running_projects'] ?></div></div></div>
-  <div class="col-md-3"><div class="card-soft p-3"><div class="small-muted">Selesai</div><div class="metric"><?= $metrics['completed_projects'] ?></div></div></div>
-  <div class="col-md-3"><div class="card-soft p-3"><div class="small-muted">Rata-rata Progres</div><div class="metric"><?= $metrics['avg_progress'] ?>%</div></div></div>
-</div>
-
-<div class="row g-3 mb-4">
-  <div class="col-md-4"><div class="card-soft p-3"><div class="small-muted">Proyek Terlambat</div><h3 class="mb-0"><?= $metrics['late_projects'] ?></h3></div></div>
-  <div class="col-md-4"><div class="card-soft p-3"><div class="small-muted">Perlu Perhatian</div><h3 class="mb-0"><?= $metrics['attention_projects'] ?></h3></div></div>
-  <div class="col-md-4"><div class="card-soft p-3"><div class="small-muted">Skor Kepatuhan</div><h3 class="mb-0"><?= $metrics['compliance_rate'] ?>%</h3></div></div>
-</div>
-
-<?php if ($attention): ?>
-<div class="card-soft p-4 mb-4">
-  <h5 class="mb-3">Notifikasi Deviasi</h5>
-  <div class="alert alert-warning mb-0">
-    <?= count($attention) ?> proyek tertinggal dari target progres. Tentu saja, jadwal proyek tetap punya bakat dramatis.
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="#"><?= e(APP_NAME) ?></a>
+    <div class="navbar-nav ms-auto">
+      <span class="nav-link text-white me-3">Halo, <?= e(current_user()['nama_lengkap'] ?? 'Pengguna') ?></span>
+      <a class="btn btn-danger btn-sm" href="<?= build_url('/auth/logout.php') ?>">Keluar</a>
+    </div>
   </div>
-  <div class="table-responsive mt-3">
-    <table class="table table-sm align-middle">
-      <thead>
-        <tr><th>Kode</th><th>Proyek</th><th>Progres Aktual</th><th>Target Sistem</th><th>Selisih</th></tr>
-      </thead>
-      <tbody>
-      <?php foreach (array_slice($attention, 0, 5) as $item): ?>
-        <tr>
-          <td><?= e($item['kode_proyek']) ?></td>
-          <td><?= e($item['nama_proyek']) ?></td>
-          <td><?= number_format($item['progress'], 1) ?>%</td>
-          <td><?= number_format($item['expected'], 1) ?>%</td>
-          <td class="text-danger"><?= number_format($item['expected'] - $item['progress'], 1) ?>%</td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-</div>
-<?php endif; ?>
+</nav>
 
-<div class="row g-3">
-  <div class="col-lg-6">
-    <div class="card-soft p-4 h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">Proyek Terbaru</h5>
-        <a href="<?= build_url('/projects/index.php') ?>" class="small text-decoration-none">Kelola</a>
+<div class="container">
+  <div class="row mb-4">
+    <div class="col-12">
+      <h2>Ringkasan Proyek Jalan</h2>
+      <p class="text-muted">Selamat datang di sistem monitoring kepatuhan dan progres infrastruktur jalan.</p>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card p-3 border-0 bg-light shadow-sm">
+        <h6 class="text-muted mb-1">Total Proyek</h6>
+        <h3 class="mb-0"><?= $metrics['total_projects'] ?></h3>
       </div>
-      <div class="table-responsive">
-        <table class="table table-sm align-middle">
-          <thead><tr><th>Kode</th><th>Nama</th><th>Status</th><th>Progres</th></tr></thead>
-          <tbody>
-          <?php foreach ($recentProjects as $p): ?>
-            <tr>
-              <td><?= e($p['kode_proyek']) ?></td>
-              <td><?= e($p['nama_proyek']) ?></td>
-              <td><?= status_badge($p['status']) ?></td>
-              <td><?= number_format($p['persentase_progress'], 1) ?>%</td>
-            </tr>
-          <?php endforeach; ?>
-          </tbody>
-        </table>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 border-0 bg-light shadow-sm">
+        <h6 class="text-primary mb-1">Sedang Berjalan</h6>
+        <h3 class="mb-0"><?= $metrics['running_projects'] ?></h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 border-0 bg-light shadow-sm">
+        <h6 class="text-success mb-1">Selesai</h6>
+        <h3 class="mb-0"><?= $metrics['completed_projects'] ?></h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 border-0 bg-light shadow-sm">
+        <h6 class="text-danger mb-1">Rata-rata Progres</h6>
+        <h3 class="mb-0"><?= $metrics['avg_progress'] ?>%</h3>
       </div>
     </div>
   </div>
-  <div class="col-lg-6">
-    <div class="card-soft p-4 h-100">
-      <h5 class="mb-3">Aktivitas Lapangan Terbaru</h5>
-      <div class="list-group list-group-flush">
-        <?php foreach ($recentProgress as $row): ?>
-          <div class="list-group-item px-0">
-            <div class="d-flex justify-content-between">
-              <strong><?= e($row['nama_proyek']) ?></strong>
-              <span><?= number_format($row['progress_persen'], 1) ?>%</span>
-            </div>
-            <div class="small text-muted"><?= e($row['uraian']) ?> · <?= format_date($row['tanggal_laporan']) ?></div>
-          </div>
-        <?php endforeach; ?>
+
+  <div class="row">
+    <div class="col-12">
+      <div class="card p-4 border-0 shadow-sm">
+        <h5 class="mb-3">Aktivitas Proyek Terbaru</h5>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Kode</th>
+                <th>Nama Proyek</th>
+                <th>Tanggal Mulai</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($recent_p)): ?>
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-3">Belum ada data proyek di database Clever Cloud.</td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($recent_p as $p): ?>
+                  <tr>
+                    <td><strong><?= e($p['kode_proyek'] ?? '-') ?></strong></td>
+                    <td><?= e($p['nama_proyek'] ?? '-') ?></td>
+                    <td><?= format_date($p['tanggal_mulai'] ?? '') ?></td>
+                    <td><?= status_badge($p['status'] ?? '') ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card-soft p-4 mt-4">
-  <h5 class="mb-3">Status Kepatuhan Terkini</h5>
-  <div class="table-responsive">
-    <table class="table table-sm align-middle">
-      <thead><tr><th>Kode</th><th>Proyek</th><th>Aspek</th><th>Hasil</th><th>Tanggal</th></tr></thead>
-      <tbody>
-      <?php foreach ($recentCompliance as $row): ?>
-        <tr>
-          <td><?= e($row['kode_proyek']) ?></td>
-          <td><?= e($row['nama_proyek']) ?></td>
-          <td><?= e($row['aspek']) ?></td>
-          <td><?= status_badge($row['status_hasil']) ?></td>
-          <td><?= format_date($row['created_at']) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
