@@ -1,25 +1,31 @@
 <?php
+// 1. Inisialisasi Sesi secara aman jika belum berjalan
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 2. Aktifkan Error Reporting untuk debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// 1. Definisikan BASE_URL secara otomatis untuk Vercel & Localhost
+// 3. Definisikan BASE_URL secara otomatis untuk Vercel & Localhost
 if (!defined('BASE_URL')) {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
     $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
     define('BASE_URL', $protocol . $domain);
 }
 
-// 2. Definisikan UPLOAD_DIR untuk penanganan file dokumen proyek
+// 4. Definisikan UPLOAD_DIR untuk penanganan file dokumen proyek
 if (!defined('UPLOAD_DIR')) {
     define('UPLOAD_DIR', __DIR__ . '/../public/uploads');
 }
 
-// 3. Hubungkan ke database Clever Cloud
+// 5. Hubungkan ke database Clever Cloud
 require_once __DIR__ . '/db.php';
 
 // ==========================================
-// KUMPULAN FUNGSI APLIKASI
+// KUMPULAN FUNGSI CORE APLIKASI
 // ==========================================
 
 function e($value) {
@@ -27,11 +33,18 @@ function e($value) {
 }
 
 function build_url($path = '') {
-    return rtrim(BASE_URL, '/') . '/' . ltrim($path, '/');
+    // Menggunakan path relatif murni untuk menghindari bentrokan domain pada Vercel routing
+    return '/' . ltrim($path, '/');
 }
 
 function redirect($path) {
-    header('Location: ' . build_url($path));
+    // Bersihkan output buffer jika ada isi yang tidak sengaja terkirim sebelum header
+    if (!headers_sent()) {
+        header('Location: ' . build_url($path));
+        exit;
+    }
+    // Cadangan darurat menggunakan JavaScript jika header HTTP sudah terlanjur dikirim
+    echo '<script>window.location.href="' . build_url($path) . '";</script>';
     exit;
 }
 
@@ -166,6 +179,10 @@ function get_users() {
     return fetch_all("SELECT * FROM users ORDER BY id ASC");
 }
 
+// ==========================================
+// FUNGSI QUERY ENTITAS PROYEK & DASHBOARD
+// ==========================================
+
 function get_projects() {
     return fetch_all("SELECT * FROM projects ORDER BY id_proyek DESC");
 }
@@ -223,7 +240,7 @@ function dashboard_metrics() {
     $compliance_count = 0;
 
     foreach ($projects as $p) {
-        $status = $p['status'];
+        $status = $p['status'] ?? '';
         if ($status === 'Berjalan') $running++;
         if ($status === 'Selesai') $done++;
         if ($status === 'Terlambat') $late++;
